@@ -45,7 +45,6 @@ export async function getCoordinatesFromAddressParts(
     if (!data || data.length === 0) return null;
 
     const result = data[0];
-    console.log('Geocode result:', result);
 
     return {
       lat: parseFloat(result.lat),
