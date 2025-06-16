@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Recipe {
+  id          String       @id @default(uuid())
+  employee    Employee     @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  clientName  String       @default("Unknown")
+  price       Float
+  status      RecipeStatus @default(NEW)
+  parameters  Parameter[]
+  events      RecipeEvent[]
+  position    Int          @default(0)
+  address      String
+  locationLat  Float?
+  locationLng  Float?
+  qrCodeUrl   String?
+  createdAt   DateTime     @default(now())
+  @@unique([status, position])
+}
+
+enum RecipeStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Parameter {
+  id          String    @id @default(uuid())
+  name        String
+  type        FieldType
+  description String    @default("Описание по умолчанию")
+  order       Int
+  recipe      Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId    String
+}
+
+enum FieldType {
+  TEXT
+  AREA
+  FILE
+}
+
+model RecipeEvent {
+  id        String    @id @default(uuid())
+  type      EventType
+  recipe    Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  recipeId  String
+  createdAt DateTime  @default(now())
+}
+
+enum EventType {
+  CREATED
+  VIEWED
+  STATUS_CHANGE
+  UPDATED
+}
+
+model Employee {
+  id        String    @id @default(uuid())
+  name      String
+  avatarUrl String?
+  recipes   Recipe[]
+  createdAt DateTime  @default(now())
+}
