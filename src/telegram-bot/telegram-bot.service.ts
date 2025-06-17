@@ -6,6 +6,8 @@ import { createEmployeeSelectionHandler } from './handlers/employee-selection.ha
 import { createTextHandler } from './handlers/text.handler';
 import { GeoService } from 'src/geo/geo.service';
 import { UploadService } from 'src/upload/upload.service';
+import { showMyOrdersHandler } from './handlers/my-orders.handler';
+import { newOrderHandler } from './handlers/new-order.handler';
 
 const token: string = process.env.TELEGRAM_BOT_TOKEN!;
 
@@ -26,6 +28,10 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       /select_employee:(.+)/,
       createEmployeeSelectionHandler(this.prisma),
     );
+
+    this.bot.action(/show_myorders(:\d+)?/, showMyOrdersHandler(this.prisma));
+
+    this.bot.action('start_neworder', newOrderHandler());
     this.bot.on(
       'text',
       createTextHandler({
@@ -36,6 +42,7 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
           this.uploadService.generateAndUploadQRCode(link, recipeId),
       }),
     );
+
     void this.bot.launch();
   }
 

@@ -34,6 +34,11 @@ export function createTextHandler(options: TextHandlerOptions) {
     const text = message.text.trim();
 
     switch (session.step) {
+      case 1:
+        session.employeeId = text;
+        session.step = 2;
+        await ctx.reply('Введите имя клиента:');
+        break;
       case 2:
         session.clientName = text;
         session.step = 3;
@@ -91,7 +96,6 @@ export function createTextHandler(options: TextHandlerOptions) {
           return;
         }
         session.price = price;
-
         if (
           !session.clientName ||
           !session.address ||

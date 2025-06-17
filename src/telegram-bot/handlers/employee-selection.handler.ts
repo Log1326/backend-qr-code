@@ -1,3 +1,4 @@
+// handlers/employee-selection.handler.ts
 import { Context } from 'telegraf';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { sessions } from '../sessions';
@@ -11,7 +12,7 @@ export function createEmployeeSelectionHandler(prisma: PrismaService) {
 
     const employeeId = ctx.match[1];
     if (!employeeId) {
-      await ctx.reply('Неверный формат выбора сотрудника.');
+      await ctx.reply('❗ Неверный формат выбора сотрудника.');
       return;
     }
 
@@ -20,17 +21,29 @@ export function createEmployeeSelectionHandler(prisma: PrismaService) {
     });
 
     if (!employee) {
-      await ctx.reply('Сотрудник не найден.');
+      await ctx.reply('❌ Сотрудник не найден.');
       return;
     }
 
-    const session = sessions.get(userId) ?? { step: 1 };
-    session.step = 2;
-    session.employeeId = employee.id;
-    session.employeeName = employee.name;
-    sessions.set(userId, session);
+    sessions.set(userId, {
+      step: 1,
+      employeeId: employee.id,
+      employeeName: employee.name,
+    });
 
     await ctx.answerCbQuery();
-    await ctx.reply('Введите имя клиента:');
+    await ctx.reply(`✅ Вы выбрали: *${employee.name}*`, {
+      parse_mode: 'Markdown',
+    });
+
+    await ctx.reply(`Что вы хотите сделать?`, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '📋 Мои заказы', callback_data: 'show_myorders' }],
+          [{ text: '➕ Новый заказ', callback_data: 'start_neworder' }],
+          [{ text: 'ℹ️ Помощь', callback_data: 'show_help' }],
+        ],
+      },
+    });
   };
 }
