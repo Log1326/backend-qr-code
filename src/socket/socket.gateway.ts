@@ -13,7 +13,7 @@ interface ConnectedEmployee {
   socketId: string;
   employeeId: string;
 }
-const origin: string = process.env.SOCKET_SITE_URL!;
+const origin: string = process.env.WEB_LINK_PROJECT!;
 
 @WebSocketGateway({
   path: '/socket',
