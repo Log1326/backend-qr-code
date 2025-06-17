@@ -8,6 +8,8 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { RecipeService } from 'src/recipes/recipes.service';
+import { RecipeStatus } from '@prisma/client';
 
 interface ConnectedEmployee {
   socketId: string;
@@ -22,6 +24,8 @@ const origin: string = process.env.WEB_LINK_PROJECT!;
   },
 })
 export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
+  constructor(private readonly recipeService: RecipeService) {}
+
   @WebSocketServer()
   server: Server;
 
@@ -62,11 +66,21 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('recipe-reordered')
-  handleRecipeReordered(
-    @MessageBody() data: { status: string; recipes: any[] },
+  async handleRecipeReordered(
+    @MessageBody()
+    data: { status: string; recipes: { id: string; position: number }[] },
     @ConnectedSocket() client: Socket,
   ) {
-    client.broadcast.emit('recipe-reordered', data);
+    try {
+      await this.recipeService.reorder(
+        data.status as RecipeStatus,
+        data.recipes,
+      );
+      client.broadcast.emit('recipe-reordered', data);
+    } catch (error) {
+      console.error('Reorder error:', error);
+      client.emit('reorder-error', { message: 'Reorder failed' });
+    }
   }
 
   @SubscribeMessage('mouse-move')
