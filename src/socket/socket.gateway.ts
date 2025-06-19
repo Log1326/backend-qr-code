@@ -58,11 +58,22 @@ export class SocketGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('recipe-updated')
-  handleRecipeUpdated(
-    @MessageBody() data: any,
+  async handleRecipeUpdated(
+    @MessageBody()
+    data: {
+      id: string;
+      status: RecipeStatus;
+    },
     @ConnectedSocket() client: Socket,
   ) {
-    client.broadcast.emit('recipe-updated', data);
+    const { id, status } = data;
+    try {
+      await this.recipeService.updateStatus(id, status);
+      client.broadcast.emit('recipe-updated', data);
+    } catch (error) {
+      console.error('Error updating recipe status:', error);
+      client.emit('error', { message: 'Failed to update recipe status' });
+    }
   }
 
   @SubscribeMessage('recipe-reordered')

@@ -1,16 +1,49 @@
 import { Injectable } from '@nestjs/common';
-import { Employee, EventType, Recipe, RecipeStatus } from '@prisma/client';
+import {
+  Employee,
+  EventType,
+  FieldType,
+  Recipe,
+  RecipeStatus,
+} from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
 
 @Injectable()
 export class RecipeService {
   constructor(private readonly prisma: PrismaService) {}
+  async updateStatus(recipeId: string, newStatus: RecipeStatus): Promise<void> {
+    await this.prisma.recipe.update({
+      where: { id: recipeId },
+      data: {
+        status: newStatus,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
 
+    await this.prisma.recipeEvent.create({
+      data: {
+        recipeId,
+        type: EventType.STATUS_CHANGE,
+      },
+    });
+  }
   async reorder(
     status: RecipeStatus,
     recipes: { id: string; position: number }[],
-  ) {
+  ): Promise<
+    | {
+        success: boolean;
+        message: string;
+      }
+    | {
+        success: boolean;
+        message?: undefined;
+      }
+  > {
     const ids = recipes.map((r) => r.id);
     const currentRecipes = await this.prisma.recipe.findMany({
       where: { id: { in: ids } },
@@ -60,7 +93,9 @@ export class RecipeService {
 
     return { success: true };
   }
-  async create(dto: CreateRecipeDto) {
+  async create(dto: CreateRecipeDto): Promise<{
+    id: string;
+  }> {
     const max = await this.prisma.recipe.aggregate({
       where: { status: dto.status },
       _max: { position: true },
@@ -97,7 +132,27 @@ export class RecipeService {
     return { id: recipe.id };
   }
 
-  async findAll() {
+  async findAll(): Promise<
+    {
+      id: string;
+      status: RecipeStatus;
+      price: number;
+      clientName: string;
+      createdAt: Date;
+      position: number;
+      employee: {
+        name: string;
+        avatarUrl: string | null;
+      };
+      parameters: {
+        id: string;
+        name: string;
+        type: FieldType;
+        description: string;
+        order: number;
+      }[];
+    }[]
+  > {
     return await this.prisma.recipe.findMany({
       select: {
         id: true,
@@ -199,7 +254,7 @@ export class RecipeService {
       },
     });
   }
-  async getById(id: string) {
+  async getById(id: string): Promise<Recipe | null> {
     await this.prisma.recipeEvent.create({
       data: {
         type: EventType.VIEWED,

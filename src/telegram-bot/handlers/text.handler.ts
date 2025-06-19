@@ -3,6 +3,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { Session, sessions } from '../sessions';
 import { Message } from 'telegraf/typings/core/types/typegram';
 import { EventType, RecipeStatus } from '@prisma/client';
+import { translate } from '../text';
+import { getCommonButtons } from '../buttons';
 
 const projectLink: string = process.env.WEB_LINK_PROJECT!;
 
@@ -25,10 +27,13 @@ export function createTextHandler(options: TextHandlerOptions) {
     if (!userId) return;
 
     const session: Session | undefined = sessions.get(userId);
+    const lang = session?.lang || 'ru';
+
     if (!session) {
-      await ctx.reply('Пожалуйста, начните с команды /start');
+      await ctx.reply(translate(lang, 'start_prompt'));
       return;
     }
+
     if (!ctx.message) return;
     const message = ctx.message as Message.TextMessage;
     const text = message.text.trim();
@@ -37,24 +42,25 @@ export function createTextHandler(options: TextHandlerOptions) {
       case 1:
         session.employeeId = text;
         session.step = 2;
-        await ctx.reply('Введите имя клиента:');
+        await ctx.reply(translate(lang, 'enter_client_name'));
         break;
+
       case 2:
         session.clientName = text;
         session.step = 3;
-        await ctx.reply('Введите город:');
+        await ctx.reply(translate(lang, 'enter_city'));
         break;
 
       case 3:
         session.city = text;
         session.step = 4;
-        await ctx.reply('Введите улицу:');
+        await ctx.reply(translate(lang, 'enter_street'));
         break;
 
       case 4:
         session.street = text;
         session.step = 5;
-        await ctx.reply('Введите номер дома:');
+        await ctx.reply(translate(lang, 'enter_house_number'));
         break;
 
       case 5: {
@@ -62,9 +68,9 @@ export function createTextHandler(options: TextHandlerOptions) {
         session.step = 6;
 
         if (!session.city || !session.street || !session.houseNumber) {
-          await ctx.reply(
-            'Пожалуйста, введите полный адрес: город, улицу и номер дома.',
-          );
+          await ctx.reply(translate(lang, 'missing_address'));
+          session.step = 3;
+          await ctx.reply(translate(lang, 'enter_city'));
           return;
         }
 
@@ -75,9 +81,9 @@ export function createTextHandler(options: TextHandlerOptions) {
         });
 
         if (!coords) {
-          await ctx.reply(
-            'Не удалось найти координаты для этого адреса. Попробуйте снова:',
-          );
+          await ctx.reply(translate(lang, 'coords_not_found'));
+          session.step = 3;
+          await ctx.reply(translate(lang, 'enter_city'));
           return;
         }
 
@@ -85,24 +91,26 @@ export function createTextHandler(options: TextHandlerOptions) {
         session.lng = coords.lng;
         session.address = `${session.city}, ${session.street} ${session.houseNumber}`;
 
-        await ctx.reply('Введите цену:');
+        await ctx.reply(translate(lang, 'enter_price'));
         break;
       }
 
       case 6: {
         const price = parseFloat(text);
         if (isNaN(price)) {
-          await ctx.reply('Цена должна быть числом. Повторите ввод:');
+          await ctx.reply(translate(lang, 'price_should_be_number'));
           return;
         }
+
         session.price = price;
+
         if (
           !session.clientName ||
           !session.address ||
           !session.employeeId ||
           !session.price
         ) {
-          await ctx.reply('Данные неполные. Пожалуйста, начните заново /start');
+          await ctx.reply(translate(lang, 'incomplete_data'));
           return;
         }
 
@@ -113,9 +121,8 @@ export function createTextHandler(options: TextHandlerOptions) {
           });
 
           const maxPositionRaw = maxPositionResult._max.position;
-          const maxPosition: number =
+          const maxPosition =
             typeof maxPositionRaw === 'number' ? maxPositionRaw : -1;
-
           const nextPosition = maxPosition + 1;
 
           const recipe = await options.prisma.recipe.create({
@@ -145,21 +152,27 @@ export function createTextHandler(options: TextHandlerOptions) {
             data: { qrCodeUrl: url },
           });
 
-          await ctx.reply(`Заказ создан!\nСсылка: ${link}`);
+          await ctx.reply(
+            `${translate(lang, 'order_created')}\n${translate(lang, 'link')}: ${link}`,
+          );
           await ctx.replyWithPhoto({ source: buffer });
 
           sessions.delete(userId);
+
+          await ctx.reply(translate(lang, 'choose_action'), {
+            reply_markup: {
+              inline_keyboard: getCommonButtons(lang),
+            },
+          });
         } catch (error) {
           console.error('Ошибка при создании заказа:', error);
-          await ctx.reply(
-            'Произошла ошибка при создании заказа. Попробуйте снова.',
-          );
+          await ctx.reply(translate(lang, 'order_creation_error'));
         }
         break;
       }
 
       default:
-        await ctx.reply('Пожалуйста, начните с команды /start');
+        await ctx.reply(translate(lang, 'start_prompt'));
         break;
     }
 

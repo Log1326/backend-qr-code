@@ -8,6 +8,10 @@ import { GeoService } from 'src/geo/geo.service';
 import { UploadService } from 'src/upload/upload.service';
 import { showMyOrdersHandler } from './handlers/my-orders.handler';
 import { newOrderHandler } from './handlers/new-order.handler';
+import { handleChooseOrderStatus } from './handlers/choose-order-status.handler';
+import { handleBackButtons } from './handlers/back-buttons.hander';
+import { handleHelp } from './handlers/help.handler';
+import { endSessionHandler } from './handlers/end-session.hanlder';
 
 const token: string = process.env.TELEGRAM_BOT_TOKEN!;
 
@@ -29,9 +33,16 @@ export class TelegramBotService implements OnModuleInit, OnModuleDestroy {
       createEmployeeSelectionHandler(this.prisma),
     );
 
+    this.bot.action('choose_order_status', handleChooseOrderStatus);
+
+    this.bot.action('back_to_main', handleBackButtons);
+
     this.bot.action(/show_myorders(:\d+)?/, showMyOrdersHandler(this.prisma));
 
-    this.bot.action('start_neworder', newOrderHandler());
+    this.bot.action('start_neworder', newOrderHandler);
+    this.bot.action('show_help', handleHelp);
+    this.bot.action('end_session', endSessionHandler);
+
     this.bot.on(
       'text',
       createTextHandler({

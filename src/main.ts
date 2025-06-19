@@ -9,6 +9,7 @@ const PORT =
   process.env.RENDER === 'true'
     ? parseInt(process.env.PORT || '3000', 10)
     : 3001;
+// const origin: string = process.env.WEB_LINK_PROJECT!;
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -23,7 +24,8 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, document);
 
   app.enableCors({
-    origin: '*', // или конкретный домен, например: 'https://your-frontend.com'
+    origin: '*',
+    // origin,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,

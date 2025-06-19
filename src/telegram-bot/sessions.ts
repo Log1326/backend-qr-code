@@ -1,3 +1,5 @@
+import { TypeLang } from './text';
+
 export interface Session {
   step: number;
   employeeId?: string;
@@ -10,6 +12,7 @@ export interface Session {
   lng?: number;
   price?: number;
   address?: string;
+  lang?: TypeLang;
 }
 
 export const sessions = new Map<number, Session>();
