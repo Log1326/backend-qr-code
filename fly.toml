@@ -1,8 +1,11 @@
 app = "socket-server-qr-code"
 primary_region = "fra"
 
+[build]
+dockerfile = "Dockerfile"
+
 [deploy]
-release_command = "npx prisma migrate deploy"
+release_command = "npx prisma db push"
 
 [http_service]
 auto_start_machines = true
