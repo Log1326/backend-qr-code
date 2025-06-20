@@ -1,0 +1,4 @@
+app = "socket-server-qr-code"
+
+[env]
+PORT = "3000"
