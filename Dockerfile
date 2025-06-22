@@ -9,7 +9,7 @@ RUN npm install
 COPY tsconfig.json ./
 COPY prisma ./prisma/
 COPY src ./src/
-
+COPY .env .env
 # Генерация клиента Prisma
 RUN npx prisma generate
 

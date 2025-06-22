@@ -7,6 +7,9 @@ dockerfile = "Dockerfile"
 [deploy]
 release_command = "npx prisma db push"
 
+[env]
+ORIGIN = "https://your-frontend-url.com"
+
 [http_service]
 auto_start_machines = true
 auto_stop_machines = true
