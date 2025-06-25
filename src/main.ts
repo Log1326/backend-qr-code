@@ -5,7 +5,7 @@ import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
-const PORT = process.env.PORT ?? 3000;
+const PORT = process.env.PORT ?? 3001;
 const origin: string = process.env.WEB_LINK_PROJECT!;
 
 async function bootstrap() {
