@@ -6,6 +6,7 @@ import { SocketModule } from './socket/socket.module';
 import { UploadModule } from './upload/upload.module';
 import { EmployeesModule } from './employees/employees.module';
 import { RecipesModule } from './recipes/recipes.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { RecipesModule } from './recipes/recipes.module';
     UploadModule,
     EmployeesModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [SocketGateway],
 })
 export class AppModule {}
