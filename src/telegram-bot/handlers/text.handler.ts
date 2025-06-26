@@ -42,34 +42,28 @@ export function createTextHandler(options: TextHandlerOptions) {
       case 1:
         session.employeeId = text;
         session.step = 2;
-        await ctx.reply(translate(lang, 'enter_client_name'));
-        break;
-
-      case 2:
-        session.clientName = text;
-        session.step = 3;
         await ctx.reply(translate(lang, 'enter_city'));
         break;
 
-      case 3:
+      case 2:
         session.city = text;
-        session.step = 4;
+        session.step = 3;
         await ctx.reply(translate(lang, 'enter_street'));
         break;
 
-      case 4:
+      case 3:
         session.street = text;
-        session.step = 5;
+        session.step = 4;
         await ctx.reply(translate(lang, 'enter_house_number'));
         break;
 
-      case 5: {
+      case 4: {
         session.houseNumber = text;
-        session.step = 6;
+        session.step = 5;
 
         if (!session.city || !session.street || !session.houseNumber) {
           await ctx.reply(translate(lang, 'missing_address'));
-          session.step = 3;
+          session.step = 2;
           await ctx.reply(translate(lang, 'enter_city'));
           return;
         }
@@ -82,7 +76,7 @@ export function createTextHandler(options: TextHandlerOptions) {
 
         if (!coords) {
           await ctx.reply(translate(lang, 'coords_not_found'));
-          session.step = 3;
+          session.step = 2;
           await ctx.reply(translate(lang, 'enter_city'));
           return;
         }
@@ -95,7 +89,7 @@ export function createTextHandler(options: TextHandlerOptions) {
         break;
       }
 
-      case 6: {
+      case 5: {
         const price = parseFloat(text);
         if (isNaN(price)) {
           await ctx.reply(translate(lang, 'price_should_be_number'));
@@ -104,12 +98,7 @@ export function createTextHandler(options: TextHandlerOptions) {
 
         session.price = price;
 
-        if (
-          !session.clientName ||
-          !session.address ||
-          !session.employeeId ||
-          !session.price
-        ) {
+        if (!session.address || !session.employeeId || !session.price) {
           await ctx.reply(translate(lang, 'incomplete_data'));
           return;
         }
@@ -127,7 +116,6 @@ export function createTextHandler(options: TextHandlerOptions) {
 
           const recipe = await options.prisma.recipe.create({
             data: {
-              clientName: session.clientName,
               address: session.address,
               price: session.price,
               employeeId: session.employeeId,
@@ -168,11 +156,14 @@ export function createTextHandler(options: TextHandlerOptions) {
           console.error('Ошибка при создании заказа:', error);
           await ctx.reply(translate(lang, 'order_creation_error'));
         }
+        session.step = 6;
         break;
       }
-
-      default:
+      case 6: {
         await ctx.reply(translate(lang, 'start_prompt'));
+      }
+      default:
+        await ctx.reply('what???');
         break;
     }
 

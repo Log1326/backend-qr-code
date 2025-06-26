@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import {
-  Employee,
   EventType,
   FieldType,
   Recipe,
   RecipeStatus,
+  Role,
+  User,
 } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateRecipeDto } from './dto/create-recipe.dto';
@@ -12,6 +13,7 @@ import { CreateRecipeDto } from './dto/create-recipe.dto';
 @Injectable()
 export class RecipeService {
   constructor(private readonly prisma: PrismaService) {}
+
   async updateStatus(recipeId: string, newStatus: RecipeStatus): Promise<void> {
     await this.prisma.recipe.update({
       where: { id: recipeId },
@@ -31,19 +33,11 @@ export class RecipeService {
       },
     });
   }
+
   async reorder(
     status: RecipeStatus,
     recipes: { id: string; position: number }[],
-  ): Promise<
-    | {
-        success: boolean;
-        message: string;
-      }
-    | {
-        success: boolean;
-        message?: undefined;
-      }
-  > {
+  ) {
     const ids = recipes.map((r) => r.id);
     const currentRecipes = await this.prisma.recipe.findMany({
       where: { id: { in: ids } },
@@ -93,9 +87,8 @@ export class RecipeService {
 
     return { success: true };
   }
-  async create(dto: CreateRecipeDto): Promise<{
-    id: string;
-  }> {
+
+  async create(dto: CreateRecipeDto): Promise<{ id: string }> {
     const max = await this.prisma.recipe.aggregate({
       where: { status: dto.status },
       _max: { position: true },
@@ -105,9 +98,9 @@ export class RecipeService {
     const recipe = await this.prisma.recipe.create({
       data: {
         employee: { connect: { id: dto.employeeId } },
+        client: dto.clientId ? { connect: { id: dto.clientId } } : undefined,
         address: dto.address,
         position: nextPosition,
-        clientName: dto.clientName,
         status: dto.status,
         price: dto.price ?? 0,
         locationLat: dto.locationLat,
@@ -132,36 +125,22 @@ export class RecipeService {
     return { id: recipe.id };
   }
 
-  async findAll(): Promise<
-    {
-      id: string;
-      status: RecipeStatus;
-      price: number;
-      clientName: string;
-      createdAt: Date;
-      position: number;
-      employee: {
-        name: string;
-        avatarUrl: string | null;
-      };
-      parameters: {
-        id: string;
-        name: string;
-        type: FieldType;
-        description: string;
-        order: number;
-      }[];
-    }[]
-  > {
-    return await this.prisma.recipe.findMany({
+  async findAll() {
+    return this.prisma.recipe.findMany({
       select: {
         id: true,
         status: true,
         price: true,
-        clientName: true,
         createdAt: true,
         position: true,
+        address: true,
         employee: {
+          select: {
+            name: true,
+            avatarUrl: true,
+          },
+        },
+        client: {
           select: {
             name: true,
             avatarUrl: true,
@@ -185,19 +164,12 @@ export class RecipeService {
       },
     });
   }
-  async getDataTable(): Promise<
-    {
-      id: string;
-      employeeName: string;
-      clientName: string;
-      price: number;
-      status: RecipeStatus;
-      createdAt: string;
-    }[]
-  > {
+
+  async getDataTable() {
     const recipes = await this.prisma.recipe.findMany({
       include: {
         employee: true,
+        client: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -207,13 +179,13 @@ export class RecipeService {
     return recipes.map((recipe) => ({
       id: recipe.id,
       employeeName: recipe.employee.name,
-      clientName: recipe.clientName,
+      clientName: recipe.client?.name ?? null,
       price: recipe.price ?? 0,
       status: recipe.status,
       createdAt: recipe.createdAt.toISOString(),
     }));
   }
-  async getInfo(): Promise<[Recipe[], Employee[]]> {
+  async getInfo(): Promise<[Recipe[], User[]]> {
     const recipes = await this.prisma.recipe.findMany({
       include: {
         employee: true,
@@ -223,7 +195,10 @@ export class RecipeService {
       },
     });
 
-    const employees = await this.prisma.employee.findMany({
+    const employees = await this.prisma.user.findMany({
+      where: {
+        role: Role.EMPLOYEE,
+      },
       orderBy: {
         name: 'asc',
       },
@@ -231,6 +206,7 @@ export class RecipeService {
 
     return [recipes, employees];
   }
+
   async getOrdersWithLocation() {
     return this.prisma.recipe.findMany({
       where: {
@@ -242,7 +218,6 @@ export class RecipeService {
         address: true,
         locationLat: true,
         locationLng: true,
-        clientName: true,
         status: true,
         price: true,
         employee: {
@@ -254,6 +229,7 @@ export class RecipeService {
       },
     });
   }
+
   async getById(id: string): Promise<Recipe | null> {
     await this.prisma.recipeEvent.create({
       data: {

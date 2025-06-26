@@ -19,8 +19,14 @@ export function createEmployeeSelectionHandler(prisma: PrismaService) {
       return;
     }
 
-    const employee = await prisma.employee.findUnique({
+    const employee = await prisma.user.findUnique({
       where: { id: employeeId },
+      select: {
+        id: true,
+        name: true,
+        avatarUrl: true,
+        role: true,
+      },
     });
 
     if (!employee) {

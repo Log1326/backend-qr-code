@@ -8,9 +8,10 @@ datasource db {
 
 model Recipe {
   id          String       @id @default(uuid())
-  employee    Employee     @relation(fields: [employeeId], references: [id])
+  employee    User         @relation("UserRecipes", fields: [employeeId], references: [id])
   employeeId  String
-  clientName  String       @default("Unknown")
+  client       User?        @relation("ClientRecipes", fields: [clientId], references: [id])
+  clientId     String?
   price       Float
   status      RecipeStatus @default(NEW)
   parameters  Parameter[]
@@ -24,26 +25,14 @@ model Recipe {
   @@unique([status, position])
 }
 
-enum RecipeStatus {
-  NEW
-  IN_PROGRESS
-  COMPLETED
-}
-
 model Parameter {
   id          String    @id @default(uuid())
   name        String
   type        FieldType
-  description String    @default("Описание по умолчанию")
+  description String    @default("@default")
   order       Int
   recipe      Recipe    @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   recipeId    String
-}
-
-enum FieldType {
-  TEXT
-  AREA
-  FILE
 }
 
 model RecipeEvent {
@@ -54,6 +43,67 @@ model RecipeEvent {
   createdAt DateTime  @default(now())
 }
 
+
+
+model User {
+  id             String        @id @default(uuid())
+  email          String        @unique
+  password       String?
+  name           String
+  avatarUrl      String?
+  role           Role          @default(CLIENT)
+  socialId       String?       @unique
+  provider       AuthProvider  @default(EMAIL)
+  createdAt      DateTime      @default(now())
+
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+  recipes        Recipe[]      @relation("UserRecipes")
+  clientRecipes  Recipe[]      @relation("ClientRecipes")
+  roleHistory    UserEvent[]        @relation("TargetUser")
+  changedRoles   UserEvent[]        @relation("ChangedByUser")
+}
+
+model Organization {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  users     User[]
+  invites   InviteToken[]
+  createdAt DateTime @default(now())
+}
+
+model UserEvent {
+  id         String   @id @default(uuid())
+  user       User     @relation("TargetUser", fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  changedBy  User     @relation("ChangedByUser", fields: [changedById], references: [id])
+  changedById String
+  oldRole    Role
+  newRole    Role
+  createdAt  DateTime @default(now())
+}
+
+model InviteToken {
+  id             String       @id @default(uuid())
+  email          String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  role           Role
+  token          String       @unique
+  expiresAt      DateTime
+  accepted       Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+}
+
+model PendingUser {
+  id         String   @id @default(uuid())
+  email      String   @unique
+  name       String?
+  token      String   @unique
+  role       Role
+  createdAt  DateTime @default(now())
+}
+
 enum EventType {
   CREATED
   VIEWED
@@ -61,10 +111,25 @@ enum EventType {
   UPDATED
 }
 
-model Employee {
-  id        String    @id @default(uuid())
-  name      String
-  avatarUrl String?
-  recipes   Recipe[]
-  createdAt DateTime  @default(now())
+
+enum Role {
+  SUPERUSER
+  ADMIN
+  EMPLOYEE
+  CLIENT
+}
+enum AuthProvider {
+  GOOGLE
+  GITHUB
+  EMAIL
+}
+enum FieldType {
+  TEXT
+  AREA
+  FILE
+}
+enum RecipeStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
 }

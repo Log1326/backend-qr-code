@@ -62,11 +62,19 @@ export function showMyOrdersHandler(
           ...(statusFilter ? { status: statusFilter } : {}),
         },
         select: {
-          clientName: true,
+          client: {
+            select: {
+              name: true,
+            },
+          },
           address: true,
           status: true,
           price: true,
-          employee: { select: { name: true } },
+          employee: {
+            select: {
+              name: true,
+            },
+          },
         },
         orderBy: { createdAt: 'desc' },
         skip: offset,
@@ -86,7 +94,6 @@ export function showMyOrdersHandler(
         .map((order) => {
           const statusTranslated = translate(lang, statusMap[order.status]);
           return (
-            `🧾 <b>${escapeHtml(order.clientName)}</b>\n` +
             `📍 <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
               order.address,
             )}">${escapeHtml(order.address)}</a>\n` +

@@ -2,11 +2,20 @@ import { Context, Markup } from 'telegraf';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { sessions } from '../sessions';
 import { translate, TypeLang } from '../text';
+import { Role } from '@prisma/client';
 
 const SUPPORTED_LANGS: TypeLang[] = ['ru', 'en', 'he'];
 
 export async function handleStart(ctx: Context, prisma: PrismaService) {
-  const employees = await prisma.employee.findMany();
+  const employees = await prisma.user.findMany({
+    where: { role: Role.EMPLOYEE },
+    select: {
+      id: true,
+      name: true,
+      avatarUrl: true,
+      email: true,
+    },
+  });
 
   if (!employees.length) {
     await ctx.reply('Нет доступных сотрудников.');

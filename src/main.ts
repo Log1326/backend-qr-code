@@ -15,6 +15,7 @@ async function bootstrap() {
     .setTitle('QR-CODE API')
     .setDescription('Документация API')
     .setVersion('1.0')
+    .addCookieAuth('access_token')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

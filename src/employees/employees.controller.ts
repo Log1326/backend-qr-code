@@ -8,16 +8,16 @@ export class EmployeesController {
   constructor(private readonly employeesService: EmployeesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Получить всех сотрудников' })
+  @ApiOperation({ summary: 'Get all employees' })
   getAll() {
     return this.employeesService.findAll();
   }
 
   @Get('list')
-  @ApiOperation({ summary: 'Получить сотрудников по списку ID' })
+  @ApiOperation({ summary: 'Get employees by list of IDs' })
   @ApiQuery({
     name: 'ids',
-    description: 'Список ID через запятую',
+    description: 'Comma separated list of employee IDs',
     required: false,
     example: 'id1,id2,id3',
   })
