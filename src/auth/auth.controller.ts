@@ -10,7 +10,6 @@ import {
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import { LocalAuthGuard } from './guards/local-auth.guard';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
 import { User } from '@prisma/client';
 
@@ -20,7 +19,7 @@ import {
   ApiResponse,
   ApiCookieAuth,
 } from '@nestjs/swagger';
-import { UserDto } from './dto/user.dto';
+import { parseDuration } from 'src/common/parseDuration';
 
 interface RequestWithUser extends Request {
   user: User;
@@ -49,7 +48,7 @@ export class AuthController {
       httpOnly: true,
       sameSite: 'lax',
       secure: true,
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: parseDuration('24h'),
     });
     return { message: 'Logged in' };
   }
@@ -59,17 +58,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout user' })
   @ApiResponse({ status: 200, type: LoginResponse })
   logout(@Res({ passthrough: true }) res: Response) {
-    res.clearCookie('access_token');
+    res.clearCookie('access_token', {
+      path: '/',
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: true,
+    });
     return { message: 'Logged out' };
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Get('me')
-  @ApiOperation({ summary: 'Get current logged in user' })
-  @ApiCookieAuth()
-  @ApiResponse({ status: 200, type: UserDto })
-  getMe(@Req() req: RequestWithUser) {
-    return req.user;
   }
 
   @Get('google')

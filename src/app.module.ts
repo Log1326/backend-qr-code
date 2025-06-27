@@ -7,9 +7,18 @@ import { UploadModule } from './upload/upload.module';
 import { EmployeesModule } from './employees/employees.module';
 import { RecipesModule } from './recipes/recipes.module';
 import { AppController } from './app.controller';
+import { AuthModule } from './auth/auth.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { UserCacheInterceptor } from './users/interceptor/UserCacheInterceptor';
+import { parseDuration } from './common/parseDuration';
 
 @Module({
   imports: [
+    CacheModule.register({
+      ttl: parseDuration('10m'),
+      isGlobal: true,
+    }),
     RecipesModule,
     SocketModule,
     PrismaModule,
@@ -17,8 +26,15 @@ import { AppController } from './app.controller';
     SocketModule,
     UploadModule,
     EmployeesModule,
+    AuthModule,
   ],
   controllers: [AppController],
-  providers: [SocketGateway],
+  providers: [
+    SocketGateway,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UserCacheInterceptor,
+    },
+  ],
 })
 export class AppModule {}

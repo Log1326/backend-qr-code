@@ -12,7 +12,7 @@ import {
 } from '@nestjs/swagger';
 import { RecipeDto } from './dto/recipe.dto';
 import { RecipeTableDto } from './dto/recipe-table.dto';
-import { UserDto } from 'src/auth/dto/user.dto';
+import { UserDto } from 'src/users/dto/user.dto';
 
 @ApiTags('recipes')
 @Controller('recipes')
