@@ -28,6 +28,7 @@ interface RequestWithUser extends Request {
 class LoginResponse {
   message: string;
 }
+const redirect: string = process.env.WEB_LINK_PROJECT!;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -88,7 +89,7 @@ export class AuthController {
       secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return { message: 'Logged in with Google' };
+    return res.redirect(redirect ?? '');
   }
 
   @Get('github')
@@ -112,6 +113,6 @@ export class AuthController {
       secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return { message: 'Logged in with GitHub' };
+    return res.redirect(redirect ?? '');
   }
 }
