@@ -17,7 +17,7 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 
-@ApiTags('upload') // Группа в Swagger UI
+@ApiTags('upload')
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
@@ -25,14 +25,14 @@ export class UploadController {
   @Post()
   @UseInterceptors(FileInterceptor('file'))
   @ApiOperation({ summary: 'Upload a file with associated recipeId' })
-  @ApiConsumes('multipart/form-data') // указываем, что принимает multipart
+  @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
       type: 'object',
       properties: {
         file: {
           type: 'string',
-          format: 'binary', // файл
+          format: 'binary',
         },
         recipeId: {
           type: 'string',

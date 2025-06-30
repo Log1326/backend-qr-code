@@ -56,8 +56,8 @@ model User {
   provider       AuthProvider  @default(EMAIL)
   createdAt      DateTime      @default(now())
 
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  organizationId String?
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
   recipes        Recipe[]      @relation("UserRecipes")
   clientRecipes  Recipe[]      @relation("ClientRecipes")
   roleHistory    UserEvent[]        @relation("TargetUser")

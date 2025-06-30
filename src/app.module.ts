@@ -12,6 +12,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { UserCacheInterceptor } from './users/interceptor/UserCacheInterceptor';
 import { parseDuration } from './common/parseDuration';
+import { OrganizationModule } from './organization/organization.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { parseDuration } from './common/parseDuration';
       ttl: parseDuration('10m'),
       isGlobal: true,
     }),
+    OrganizationModule,
     RecipesModule,
     SocketModule,
     PrismaModule,
@@ -27,6 +29,7 @@ import { parseDuration } from './common/parseDuration';
     UploadModule,
     EmployeesModule,
     AuthModule,
+    OrganizationModule,
   ],
   controllers: [AppController],
   providers: [

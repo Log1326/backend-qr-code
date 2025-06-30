@@ -6,6 +6,8 @@ import {
   UseGuards,
   Get,
   HttpCode,
+  BadRequestException,
+  Body,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -20,6 +22,7 @@ import {
   ApiCookieAuth,
 } from '@nestjs/swagger';
 import { parseDuration } from 'src/common/parseDuration';
+import { OrganizationService } from 'src/organization/organization.service';
 
 interface RequestWithUser extends Request {
   user: User;
@@ -33,7 +36,39 @@ const redirect: string = process.env.WEB_LINK_PROJECT!;
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly organizationService: OrganizationService,
+  ) {}
+
+  @Post('register-invite')
+  async registerByInvite(
+    @Body()
+    body: {
+      token: string;
+      email: string;
+      name: string;
+      password: string;
+    },
+  ) {
+    const invite = await this.organizationService.validateInvite(body.token);
+
+    if (invite.email !== body.email) {
+      throw new BadRequestException('Email does not match the invite');
+    }
+
+    const user = await this.authService.registerUserByInvite({
+      email: body.email,
+      name: body.name,
+      password: body.password,
+      organizationId: invite.organizationId,
+      role: invite.role,
+    });
+
+    await this.organizationService.markInviteAccepted(invite.token);
+
+    return { message: 'User registered successfully', userId: user.id };
+  }
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
@@ -82,14 +117,15 @@ export class AuthController {
     @Req() req: RequestWithUser,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (!req.user) return res.status(401).json({ message: 'Unauthorized' });
     const token = await this.authService.login(req.user);
     res.cookie('access_token', token.access_token, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return res.redirect(redirect ?? '');
+    return res.redirect(redirect ?? '/');
   }
 
   @Get('github')
@@ -109,7 +145,7 @@ export class AuthController {
     const token = await this.authService.login(req.user);
     res.cookie('access_token', token.access_token, {
       httpOnly: true,
-      sameSite: 'lax',
+      sameSite: 'none',
       secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });

@@ -10,6 +10,7 @@ import { GoogleStrategy } from './strategy/google.strategy';
 import { JwtStrategy } from './strategy/jwt.strategy';
 import { LocalStrategy } from './strategy/local.strategy';
 import { UsersModule } from 'src/users/users.module';
+import { OrganizationModule } from 'src/organization/organization.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { UsersModule } from 'src/users/users.module';
         signOptions: { expiresIn: '7d' },
       }),
     }),
+    OrganizationModule,
     UsersModule,
     PrismaModule,
   ],

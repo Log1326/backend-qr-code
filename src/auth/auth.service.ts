@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   Inject,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User, AuthProvider } from '@prisma/client';
@@ -42,7 +43,25 @@ export class AuthService {
 
     return user;
   }
+  async signUp(email: string, password: string, name: string): Promise<User> {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser)
+      throw new ForbiddenException('User with this email already exists');
 
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = await this.prisma.user.create({
+      data: {
+        email,
+        password: hashedPassword,
+        name,
+        role: Role.CLIENT,
+        provider: AuthProvider.EMAIL,
+      },
+    });
+    return newUser;
+  }
   async login(user: User): Promise<{ access_token: string }> {
     const payload: JwtPayload = {
       sub: user.id,
@@ -84,7 +103,31 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found');
     return user;
   }
+  async registerUserByInvite(data: {
+    email: string;
+    name: string;
+    password: string;
+    organizationId: string;
+    role: Role;
+  }) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existingUser)
+      throw new BadRequestException('User with this email already exists');
 
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    return this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        password: hashedPassword,
+        role: data.role,
+        organizationId: data.organizationId,
+        provider: 'EMAIL',
+      },
+    });
+  }
   logout(): { message: string } {
     return { message: 'Logged out successfully' };
   }
