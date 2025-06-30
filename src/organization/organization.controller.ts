@@ -1,119 +1,118 @@
 import {
   Controller,
   Post,
-  Body,
-  Param,
   Get,
+  Param,
+  Body,
+  Patch,
   UseGuards,
-  Delete,
+  Request,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiParam,
+  ApiBody,
+} from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
-import { Roles } from 'src/auth/decorators/roles.decorator';
-import {
-  ApiTags,
-  ApiBearerAuth,
-  ApiOperation,
-  ApiParam,
-  ApiBody,
-  ApiResponse,
-} from '@nestjs/swagger';
 
-@ApiTags('Organization')
-@Controller('organization')
+class CreateOrganizationDto {
+  orgName: string;
+  superUserEmail: string;
+  superUserPassword: string;
+  superUserName: string;
+}
+
+class CreateInviteDto {
+  email: string;
+  role: Role;
+}
+
+class RegisterUserByInviteDto {
+  email: string;
+  name: string;
+  password: string;
+  token: string;
+}
+
+class ChangeUserRoleDto {
+  newRole: Role;
+}
+
+@ApiTags('organizations')
+@Controller('organizations')
 export class OrganizationController {
-  constructor(private readonly organizationService: OrganizationService) {}
+  constructor(private readonly orgService: OrganizationService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Create a new organization with a superuser' })
-  @ApiBody({
-    schema: {
-      example: {
-        name: 'My Company',
-        email: 'admin@company.com',
-        password: 'securePass123',
-        userName: 'Admin User',
-      },
-    },
-  })
+  @ApiOperation({ summary: 'Create organization with superuser' })
+  @ApiBody({ type: CreateOrganizationDto })
   @ApiResponse({
     status: 201,
-    description: 'Organization and superuser successfully created',
+    description: 'Organization created successfully',
   })
-  async createOrganization(
-    @Body()
-    body: {
-      name: string;
-      email: string;
-      password: string;
-      userName: string;
-    },
-  ) {
-    return this.organizationService.createOrganization(
-      body.name,
-      body.email,
-      body.password,
-      body.userName,
+  async createOrganization(@Body() dto: CreateOrganizationDto) {
+    return this.orgService.createOrganization(
+      dto.orgName,
+      dto.superUserEmail,
+      dto.superUserPassword,
+      dto.superUserName,
     );
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SUPERUSER, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Get(':orgId/users')
-  @ApiOperation({ summary: 'Get all users within an organization' })
-  @ApiParam({ name: 'orgId', required: true, description: 'Organization ID' })
-  @ApiResponse({
-    status: 200,
-    description: 'List of users in the organization',
-  })
-  async getUsers(@Param('orgId') orgId: string) {
-    return this.organizationService.getUsersByOrganization(orgId);
+  @ApiOperation({ summary: 'Get all users in organization' })
+  @ApiParam({ name: 'orgId', type: 'string' })
+  @ApiResponse({ status: 200, description: 'List of users' })
+  async getUsersByOrganization(@Param('orgId') orgId: string) {
+    return this.orgService.getUsersByOrganization(orgId);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SUPERUSER, Role.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post(':orgId/invite')
-  @ApiOperation({ summary: 'Create an invite for a new user' })
-  @ApiParam({ name: 'orgId', required: true, description: 'Organization ID' })
-  @ApiBody({
-    schema: {
-      example: {
-        email: 'newuser@example.com',
-        role: 'EMPLOYEE',
-      },
-    },
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Invitation token created successfully',
-  })
+  @ApiOperation({ summary: 'Invite user to organization' })
+  @ApiParam({ name: 'orgId', type: 'string' })
+  @ApiBody({ type: CreateInviteDto })
+  @ApiResponse({ status: 201, description: 'Invite created successfully' })
   async createInvite(
     @Param('orgId') orgId: string,
-    @Body() body: { email: string; role: Role },
+    @Body() dto: CreateInviteDto,
+    @Request() req,
   ) {
-    return this.organizationService.createInvite(orgId, body.email, body.role);
+    const inviterId = req.user.id;
+    return this.orgService.createInvite(orgId, dto.email, dto.role, inviterId);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.SUPERUSER, Role.ADMIN)
+  @Post('register-by-invite')
+  @ApiOperation({ summary: 'Register user by invite token' })
+  @ApiBody({ type: RegisterUserByInviteDto })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  async registerUserByInvite(@Body() dto: RegisterUserByInviteDto) {
+    return this.orgService.registerUserByInvite(dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @Delete(':orgId/users/:userId')
-  @ApiOperation({ summary: 'Remove a user from an organization' })
-  @ApiParam({ name: 'orgId', description: 'Organization ID' })
-  @ApiParam({ name: 'userId', description: 'User ID to remove' })
-  @ApiResponse({
-    status: 200,
-    description: 'User successfully removed from the organization',
-  })
-  async removeUser(
-    @Param('orgId') orgId: string,
+  @Patch('users/:userId/role')
+  @ApiOperation({ summary: 'Change user role' })
+  @ApiParam({ name: 'userId', type: 'string' })
+  @ApiBody({ type: ChangeUserRoleDto })
+  @ApiResponse({ status: 200, description: 'User role updated' })
+  async changeUserRole(
     @Param('userId') userId: string,
+    @Body() dto: ChangeUserRoleDto,
+    @Request() req,
   ) {
-    await this.organizationService.removeUserFromOrganization(userId, orgId);
-    return { message: 'User removed from organization' };
+    const changedByUserId = req.user.id;
+    return this.orgService.changeUserRole(userId, dto.newRole, changedByUserId);
   }
 }

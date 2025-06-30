@@ -20,16 +20,6 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async create(data: {
-    email: string;
-    name: string;
-    password?: string;
-    role?: Role;
-    avatarUrl?: string;
-  }): Promise<User> {
-    return this.prisma.user.create({ data });
-  }
-
   async update(
     id: string,
     data: Partial<{

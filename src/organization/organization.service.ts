@@ -2,10 +2,17 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-import { Role, User, Organization, InviteToken } from '@prisma/client';
+import {
+  Role,
+  User,
+  Organization,
+  InviteToken,
+  UserEvent,
+} from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
@@ -24,6 +31,12 @@ export class OrganizationService {
       });
       if (existingOrg)
         throw new ForbiddenException('Organization name already exists');
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email: superUserEmail },
+      });
+      if (existingUser)
+        throw new ForbiddenException('User with this email already exists');
 
       const organization = await prisma.organization.create({
         data: { name: orgName },
@@ -47,20 +60,46 @@ export class OrganizationService {
   }
 
   async getUsersByOrganization(orgId: string): Promise<User[]> {
-    const users = await this.prisma.user.findMany({
-      where: { organizationId: orgId },
+    return this.prisma.user.findMany({
+      where: {
+        organizationId: orgId,
+      },
     });
-    return users;
   }
 
   async createInvite(
     orgId: string,
     email: string,
     role: Role,
+    invitedByUserId: string,
     expiresInDays = 7,
   ): Promise<InviteToken> {
-    const token = uuidv4();
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: invitedByUserId },
+    });
+    if (!inviter || inviter.organizationId !== orgId)
+      throw new ForbiddenException('Inviter not in this organization');
 
+    const allowedRoles: Role[] = [Role.SUPERUSER, Role.ADMIN];
+    if (!allowedRoles.includes(inviter.role)) {
+      throw new ForbiddenException('Only SUPERUSER or ADMIN can invite users');
+    }
+
+    if (role === Role.SUPERUSER) {
+      const existingSuperUser = await this.prisma.user.findFirst({
+        where: { organizationId: orgId, role: Role.SUPERUSER },
+      });
+      if (existingSuperUser)
+        throw new ForbiddenException('Organization already has a SUPERUSER');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser)
+      throw new ForbiddenException('User with this email already exists');
+
+    const token = uuidv4();
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
@@ -75,17 +114,97 @@ export class OrganizationService {
     });
   }
 
-  async removeUserFromOrganization(
-    userId: string,
-    orgId: string,
-  ): Promise<void> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.organizationId !== orgId) {
-      throw new NotFoundException('User not found in this organization');
+  async registerUserByInvite(data: {
+    email: string;
+    name: string;
+    password: string;
+    token: string;
+  }): Promise<User> {
+    const invite = await this.prisma.inviteToken.findUnique({
+      where: { token: data.token },
+    });
+    if (!invite || invite.accepted || invite.expiresAt < new Date()) {
+      throw new ForbiddenException('Invalid or expired invite');
     }
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { organizationId: null },
+    if (invite.email !== data.email) {
+      throw new ForbiddenException('Invite email does not match');
+    }
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existingUser) {
+      throw new ForbiddenException('User with this email already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: data.email,
+        name: data.name,
+        password: hashedPassword,
+        role: invite.role,
+        organizationId: invite.organizationId,
+        provider: 'EMAIL',
+      },
+    });
+
+    await this.prisma.inviteToken.update({
+      where: { token: data.token },
+      data: { accepted: true },
+    });
+
+    return user;
+  }
+
+  async changeUserRole(
+    targetUserId: string,
+    newRole: Role,
+    changedByUserId: string,
+  ): Promise<User> {
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!targetUser) throw new NotFoundException('User not found');
+
+    const changedByUser = await this.prisma.user.findUnique({
+      where: { id: changedByUserId },
+    });
+    if (!changedByUser) throw new ForbiddenException('Changer user not found');
+
+    if (targetUser.organizationId !== changedByUser.organizationId) {
+      throw new ForbiddenException('Users belong to different organizations');
+    }
+
+    if (targetUser.role === Role.SUPERUSER && newRole !== Role.SUPERUSER) {
+      throw new ForbiddenException('Cannot change role of SUPERUSER');
+    }
+
+    if (newRole === Role.SUPERUSER) {
+      const existingSuperUser = await this.prisma.user.findFirst({
+        where: {
+          organizationId: targetUser.organizationId,
+          role: Role.SUPERUSER,
+        },
+      });
+      if (existingSuperUser && existingSuperUser.id !== targetUserId) {
+        throw new ForbiddenException('Organization already has a SUPERUSER');
+      }
+    }
+
+    await this.prisma.userEvent.create({
+      data: {
+        userId: targetUser.id,
+        changedById: changedByUser.id,
+        oldRole: targetUser.role,
+        newRole,
+      },
+    });
+
+    return this.prisma.user.update({
+      where: { id: targetUserId },
+      data: { role: newRole },
     });
   }
 
@@ -98,6 +217,7 @@ export class OrganizationService {
     }
     return invite;
   }
+
   async markInviteAccepted(token: string): Promise<void> {
     await this.prisma.inviteToken.update({
       where: { token },

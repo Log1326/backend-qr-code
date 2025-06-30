@@ -77,14 +77,6 @@ export class UsersController {
     return this.usersService.findById(id);
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new user' })
-  @ApiBody({ type: CreateUserDto })
-  @ApiResponse({ status: 201, type: UserDto })
-  async create(@Body() data: CreateUserDto): Promise<User> {
-    return this.usersService.create(data);
-  }
-
   @Patch(':id')
   @ApiOperation({ summary: 'Update user by ID' })
   @ApiParam({ name: 'id', type: String })

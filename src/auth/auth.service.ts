@@ -2,7 +2,6 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
-  Inject,
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -43,24 +42,48 @@ export class AuthService {
 
     return user;
   }
-  async signUp(email: string, password: string, name: string): Promise<User> {
+  async signUpWithOrganization(data: {
+    organizationName: string;
+    email: string;
+    name: string;
+    password: string;
+  }): Promise<User> {
     const existingUser = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: data.email },
     });
+
     if (existingUser)
       throw new ForbiddenException('User with this email already exists');
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role: Role.CLIENT,
-        provider: AuthProvider.EMAIL,
-      },
+    const existingOrg = await this.prisma.organization.findUnique({
+      where: { name: data.organizationName },
     });
-    return newUser;
+
+    if (existingOrg)
+      throw new ForbiddenException(
+        'Organization with this name already exists',
+      );
+
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+
+    return this.prisma.$transaction(async (tx) => {
+      const organization = await tx.organization.create({
+        data: { name: data.organizationName },
+      });
+
+      const user = await tx.user.create({
+        data: {
+          email: data.email,
+          name: data.name,
+          password: hashedPassword,
+          provider: AuthProvider.EMAIL,
+          role: Role.SUPERUSER,
+          organizationId: organization.id,
+        },
+      });
+
+      return user;
+    });
   }
   async login(user: User): Promise<{ access_token: string }> {
     const payload: JwtPayload = {
@@ -74,28 +97,20 @@ export class AuthService {
 
   async validateOAuthLogin(dto: OAuthLoginDto): Promise<User> {
     const { provider, socialId, email, name } = dto;
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user)
+      throw new ForbiddenException(
+        'Access denied. You must be invited by an organization administrator before using OAuth login.',
+      );
 
-    let user = await this.prisma.user.findUnique({ where: { email } });
-
-    if (user) {
-      if (user.provider !== provider || user.socialId !== socialId) {
-        user = await this.prisma.user.update({
-          where: { email },
-          data: { socialId, provider },
-        });
-      }
-      return user;
+    if (user.provider !== provider || user.socialId !== socialId) {
+      return this.prisma.user.update({
+        where: { email },
+        data: { socialId, provider },
+      });
     }
 
-    return this.prisma.user.create({
-      data: {
-        email,
-        name,
-        socialId,
-        provider,
-        role: Role.CLIENT,
-      },
-    });
+    return user;
   }
 
   async getUserById(userId: string): Promise<User> {
@@ -103,6 +118,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException('User not found');
     return user;
   }
+
   async registerUserByInvite(data: {
     email: string;
     name: string;
