@@ -20,12 +20,20 @@ import {
   ApiOperation,
   ApiResponse,
   ApiCookieAuth,
+  ApiBody,
 } from '@nestjs/swagger';
 import { parseDuration } from 'src/common/parseDuration';
 import { OrganizationService } from 'src/organization/organization.service';
 
 interface RequestWithUser extends Request {
   user: User;
+}
+
+class RegisterByInviteDto {
+  token: string;
+  email: string;
+  name: string;
+  password: string;
 }
 
 class LoginResponse {
@@ -42,15 +50,10 @@ export class AuthController {
   ) {}
 
   @Post('register-invite')
-  async registerByInvite(
-    @Body()
-    body: {
-      token: string;
-      email: string;
-      name: string;
-      password: string;
-    },
-  ) {
+  @ApiOperation({ summary: 'Register user by invite token' })
+  @ApiBody({ type: RegisterByInviteDto })
+  @ApiResponse({ status: 201, description: 'User registered successfully' })
+  async registerByInvite(@Body() body: RegisterByInviteDto) {
     const invite = await this.organizationService.validateInvite(body.token);
 
     if (invite.email !== body.email) {
