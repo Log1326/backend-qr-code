@@ -2,29 +2,22 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import * as bcrypt from 'bcrypt';
-import {
-  Role,
-  User,
-  Organization,
-  InviteToken,
-  UserEvent,
-} from '@prisma/client';
+import { Role, User, Organization, InviteToken } from '@prisma/client';
 import { v4 as uuidv4 } from 'uuid';
+import { hashPassword } from 'src/common/crypto';
+import { CreateOrganizationDto } from './dto/create-organization.dto';
 
 @Injectable()
 export class OrganizationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createOrganization(
-    orgName: string,
-    superUserEmail: string,
-    superUserPassword: string,
-    superUserName: string,
-  ): Promise<Organization> {
+  async create(
+    dto: CreateOrganizationDto,
+  ): Promise<{ organization: Organization; user: User }> {
+    const { orgName, superUserEmail, superUserPassword, superUserName } = dto;
+
     return this.prisma.$transaction(async (prisma) => {
       const existingOrg = await prisma.organization.findUnique({
         where: { name: orgName },
@@ -42,9 +35,9 @@ export class OrganizationService {
         data: { name: orgName },
       });
 
-      const hashedPassword = await bcrypt.hash(superUserPassword, 10);
+      const hashedPassword = await hashPassword(superUserPassword);
 
-      await prisma.user.create({
+      const user = await prisma.user.create({
         data: {
           email: superUserEmail,
           password: hashedPassword,
@@ -55,15 +48,13 @@ export class OrganizationService {
         },
       });
 
-      return organization;
+      return { organization, user };
     });
   }
 
   async getUsersByOrganization(orgId: string): Promise<User[]> {
     return this.prisma.user.findMany({
-      where: {
-        organizationId: orgId,
-      },
+      where: { organizationId: orgId },
     });
   }
 
@@ -77,8 +68,9 @@ export class OrganizationService {
     const inviter = await this.prisma.user.findUnique({
       where: { id: invitedByUserId },
     });
-    if (!inviter || inviter.organizationId !== orgId)
+    if (!inviter || inviter.organizationId !== orgId) {
       throw new ForbiddenException('Inviter not in this organization');
+    }
 
     const allowedRoles: Role[] = [Role.SUPERUSER, Role.ADMIN];
     if (!allowedRoles.includes(inviter.role)) {
@@ -89,15 +81,17 @@ export class OrganizationService {
       const existingSuperUser = await this.prisma.user.findFirst({
         where: { organizationId: orgId, role: Role.SUPERUSER },
       });
-      if (existingSuperUser)
+      if (existingSuperUser) {
         throw new ForbiddenException('Organization already has a SUPERUSER');
+      }
     }
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
-    if (existingUser)
+    if (existingUser) {
       throw new ForbiddenException('User with this email already exists');
+    }
 
     const token = uuidv4();
     const expiresAt = new Date();
@@ -137,7 +131,7 @@ export class OrganizationService {
       throw new ForbiddenException('User with this email already exists');
     }
 
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const hashedPassword = await hashPassword(data.password);
 
     const user = await this.prisma.user.create({
       data: {

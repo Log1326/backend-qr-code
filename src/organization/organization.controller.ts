@@ -7,8 +7,6 @@ import {
   Patch,
   UseGuards,
   Request,
-  ForbiddenException,
-  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,31 +17,12 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
-import { Role } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-
-class CreateOrganizationDto {
-  orgName: string;
-  superUserEmail: string;
-  superUserPassword: string;
-  superUserName: string;
-}
-
-class CreateInviteDto {
-  email: string;
-  role: Role;
-}
-
-class RegisterUserByInviteDto {
-  email: string;
-  name: string;
-  password: string;
-  token: string;
-}
-
-class ChangeUserRoleDto {
-  newRole: Role;
-}
+import { CreateOrganizationDto } from './dto/create-organization.dto';
+import { ChangeUserRoleDto } from './dto/change-user-role.dto';
+import { CreateInviteDto } from './dto/create-invite.dto';
+import { RegisterUserByInviteDto } from './dto/register-user-by-invite.dto';
+import { RequestWithUser } from 'src/auth/interface/request-with-user.interface';
 
 @ApiTags('organizations')
 @Controller('organizations')
@@ -58,12 +37,7 @@ export class OrganizationController {
     description: 'Organization created successfully',
   })
   async createOrganization(@Body() dto: CreateOrganizationDto) {
-    return this.orgService.createOrganization(
-      dto.orgName,
-      dto.superUserEmail,
-      dto.superUserPassword,
-      dto.superUserName,
-    );
+    return this.orgService.create(dto);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -86,7 +60,7 @@ export class OrganizationController {
   async createInvite(
     @Param('orgId') orgId: string,
     @Body() dto: CreateInviteDto,
-    @Request() req,
+    @Request() req: RequestWithUser,
   ) {
     const inviterId = req.user.id;
     return this.orgService.createInvite(orgId, dto.email, dto.role, inviterId);
@@ -110,7 +84,7 @@ export class OrganizationController {
   async changeUserRole(
     @Param('userId') userId: string,
     @Body() dto: ChangeUserRoleDto,
-    @Request() req,
+    @Request() req: RequestWithUser,
   ) {
     const changedByUserId = req.user.id;
     return this.orgService.changeUserRole(userId, dto.newRole, changedByUserId);

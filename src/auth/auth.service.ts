@@ -2,31 +2,22 @@ import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
-  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Role, User, AuthProvider } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  role: Role;
-}
-
-export interface OAuthLoginDto {
-  provider: AuthProvider;
-  socialId: string;
-  email: string;
-  name: string;
-}
+import { OrganizationService } from 'src/organization/organization.service';
+import { CreateOrganizationDto } from 'src/organization/dto/create-organization.dto';
+import { OAuthLoginDto } from './dto/oauth-login.dto';
+import { JwtPayload } from './strategy/types/types';
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly organizationService: OrganizationService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
@@ -42,48 +33,8 @@ export class AuthService {
 
     return user;
   }
-  async signUpWithOrganization(data: {
-    organizationName: string;
-    email: string;
-    name: string;
-    password: string;
-  }): Promise<User> {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
-
-    if (existingUser)
-      throw new ForbiddenException('User with this email already exists');
-
-    const existingOrg = await this.prisma.organization.findUnique({
-      where: { name: data.organizationName },
-    });
-
-    if (existingOrg)
-      throw new ForbiddenException(
-        'Organization with this name already exists',
-      );
-
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-
-    return this.prisma.$transaction(async (tx) => {
-      const organization = await tx.organization.create({
-        data: { name: data.organizationName },
-      });
-
-      const user = await tx.user.create({
-        data: {
-          email: data.email,
-          name: data.name,
-          password: hashedPassword,
-          provider: AuthProvider.EMAIL,
-          role: Role.SUPERUSER,
-          organizationId: organization.id,
-        },
-      });
-
-      return user;
-    });
+  async signUpWithOrganization(dto: CreateOrganizationDto) {
+    return this.organizationService.create(dto);
   }
   async login(user: User): Promise<{ access_token: string }> {
     const payload: JwtPayload = {
@@ -96,7 +47,7 @@ export class AuthService {
   }
 
   async validateOAuthLogin(dto: OAuthLoginDto): Promise<User> {
-    const { provider, socialId, email, name } = dto;
+    const { provider, socialId, email } = dto;
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user)
       throw new ForbiddenException(
@@ -117,34 +68,5 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('User not found');
     return user;
-  }
-
-  async registerUserByInvite(data: {
-    email: string;
-    name: string;
-    password: string;
-    organizationId: string;
-    role: Role;
-  }) {
-    const existingUser = await this.prisma.user.findUnique({
-      where: { email: data.email },
-    });
-    if (existingUser)
-      throw new BadRequestException('User with this email already exists');
-
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-    return this.prisma.user.create({
-      data: {
-        email: data.email,
-        name: data.name,
-        password: hashedPassword,
-        role: data.role,
-        organizationId: data.organizationId,
-        provider: 'EMAIL',
-      },
-    });
-  }
-  logout(): { message: string } {
-    return { message: 'Logged out successfully' };
   }
 }

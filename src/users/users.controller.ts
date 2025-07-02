@@ -1,7 +1,6 @@
 import {
   Controller,
   Get,
-  Post,
   Patch,
   Delete,
   Param,
@@ -11,7 +10,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
-import { User, Role, $Enums } from '@prisma/client';
+import { User, $Enums } from '@prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -25,25 +24,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CacheTTL } from '@nestjs/cache-manager';
 import { UserCacheInterceptor } from './interceptor/UserCacheInterceptor';
 import { parseDuration } from 'src/common/parseDuration';
-class CreateUserDto {
-  email: string;
-  name: string;
-  password?: string;
-  role?: Role;
-  avatarUrl?: string;
-}
-
-class UpdateUserDto {
-  email?: string;
-  name?: string;
-  password?: string;
-  role?: Role;
-  avatarUrl?: string;
-}
-
-interface RequestWithUser extends Request {
-  user: User;
-}
+import { RequestWithUser } from 'src/auth/interface/request-with-user.interface';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @ApiTags('users')
 @Controller('users')

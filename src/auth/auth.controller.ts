@@ -6,72 +6,28 @@ import {
   UseGuards,
   Get,
   HttpCode,
-  BadRequestException,
-  Body,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { Response, Request } from 'express';
+import { Response } from 'express';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { AuthGuard } from '@nestjs/passport';
-import { User } from '@prisma/client';
 
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
   ApiCookieAuth,
-  ApiBody,
 } from '@nestjs/swagger';
 import { parseDuration } from 'src/common/parseDuration';
-import { OrganizationService } from 'src/organization/organization.service';
+import { LoginResponse } from './dto/login-response.dto';
+import { RequestWithUser } from './interface/request-with-user.interface';
 
-interface RequestWithUser extends Request {
-  user: User;
-}
-
-class RegisterByInviteDto {
-  token: string;
-  email: string;
-  name: string;
-  password: string;
-}
-
-class LoginResponse {
-  message: string;
-}
 const redirect: string = process.env.WEB_LINK_PROJECT!;
 
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly organizationService: OrganizationService,
-  ) {}
-
-  @Post('register-invite')
-  @ApiOperation({ summary: 'Register user by invite token' })
-  @ApiBody({ type: RegisterByInviteDto })
-  @ApiResponse({ status: 201, description: 'User registered successfully' })
-  async registerByInvite(@Body() body: RegisterByInviteDto) {
-    const invite = await this.organizationService.validateInvite(body.token);
-
-    if (invite.email !== body.email) {
-      throw new BadRequestException('Email does not match the invite');
-    }
-
-    const user = await this.authService.registerUserByInvite({
-      email: body.email,
-      name: body.name,
-      password: body.password,
-      organizationId: invite.organizationId,
-      role: invite.role,
-    });
-
-    await this.organizationService.markInviteAccepted(invite.token);
-
-    return { message: 'User registered successfully', userId: user.id };
-  }
+  constructor(private readonly authService: AuthService) {}
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
