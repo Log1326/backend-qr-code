@@ -27,4 +27,4 @@ COPY --from=builder /app/prisma ./prisma
 ENV NODE_ENV=production
 ENV PORT=3000
 
-CMD ["node", "dist/src/main.js"]
+CMD ["node", "dist/main.js"]
