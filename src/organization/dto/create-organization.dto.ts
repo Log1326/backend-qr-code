@@ -1,23 +1,24 @@
-import { IsEmail, IsNotEmpty, IsString } from 'class-validator';
+import { IsEmail, IsNotEmpty, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 
 export class CreateOrganizationDto {
   @ApiProperty()
-  @IsString()
   @IsNotEmpty()
-  orgName: string;
+  organizationName: string;
 
   @ApiProperty()
   @IsEmail()
-  superUserEmail: string;
+  email: string;
 
   @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  superUserPassword: string;
+  @MinLength(6)
+  password: string;
 
   @ApiProperty()
-  @IsString()
   @IsNotEmpty()
-  superUserName: string;
+  name: string;
+
+  @ApiProperty({ enum: Role, default: Role.SUPERUSER })
+  readonly role: Role = Role.SUPERUSER;
 }

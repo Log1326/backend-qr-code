@@ -55,7 +55,20 @@ export class UsersController {
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, type: UserDto })
   @ApiResponse({ status: 404, description: 'User not found' })
-  async findById(@Param('id') id: string): Promise<User> {
+  async findById(@Param('id') id: string): Promise<{
+    name: string;
+    id: string;
+    email: string;
+    avatarUrl: string | null;
+    role: $Enums.Role;
+    socialId: string | null;
+    provider: $Enums.AuthProvider;
+    createdAt: Date;
+    organizationId: string;
+    organization: {
+      name: string;
+    };
+  }> {
     return this.usersService.findById(id);
   }
 

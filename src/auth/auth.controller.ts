@@ -6,6 +6,7 @@ import {
   UseGuards,
   Get,
   HttpCode,
+  Body,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response } from 'express';
@@ -21,6 +22,7 @@ import {
 import { parseDuration } from 'src/common/parseDuration';
 import { LoginResponse } from './dto/login-response.dto';
 import { RequestWithUser } from './interface/request-with-user.interface';
+import { CreateOrganizationDto } from 'src/organization/dto/create-organization.dto';
 
 const redirect: string = process.env.WEB_LINK_PROJECT!;
 
@@ -39,6 +41,24 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const token = await this.authService.login(req.user);
+    res.cookie('access_token', token.access_token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: true,
+      maxAge: parseDuration('24h'),
+    });
+    return { message: 'Logged in' };
+  }
+
+  @Post('register')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'Register organization with superuser' })
+  @ApiResponse({ status: 200, type: LoginResponse })
+  async register(
+    @Body() dto: CreateOrganizationDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const token = await this.authService.signUpWithOrganization(dto);
     res.cookie('access_token', token.access_token, {
       httpOnly: true,
       sameSite: 'lax',

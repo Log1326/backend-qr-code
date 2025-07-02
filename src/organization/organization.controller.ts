@@ -63,7 +63,13 @@ export class OrganizationController {
     @Request() req: RequestWithUser,
   ) {
     const inviterId = req.user.id;
-    return this.orgService.createInvite(orgId, dto.email, dto.role, inviterId);
+    const invite = await this.orgService.createInvite(
+      orgId,
+      dto.email,
+      dto.role,
+      inviterId,
+    );
+    return { token: invite.token };
   }
 
   @Post('register-by-invite')
@@ -72,6 +78,13 @@ export class OrganizationController {
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   async registerUserByInvite(@Body() dto: RegisterUserByInviteDto) {
     return this.orgService.registerUserByInvite(dto);
+  }
+
+  @Get('invite/:token')
+  @ApiOperation({ summary: 'Get invite info by token' })
+  @ApiResponse({ status: 200 })
+  getInviteInfo(@Param('token') token: string) {
+    return this.orgService.getInviteInfo(token);
   }
 
   @UseGuards(JwtAuthGuard)

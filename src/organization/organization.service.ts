@@ -16,32 +16,32 @@ export class OrganizationService {
   async create(
     dto: CreateOrganizationDto,
   ): Promise<{ organization: Organization; user: User }> {
-    const { orgName, superUserEmail, superUserPassword, superUserName } = dto;
+    const { email, organizationName, name, password } = dto;
 
     return this.prisma.$transaction(async (prisma) => {
       const existingOrg = await prisma.organization.findUnique({
-        where: { name: orgName },
+        where: { name: organizationName },
       });
       if (existingOrg)
         throw new ForbiddenException('Organization name already exists');
 
       const existingUser = await prisma.user.findUnique({
-        where: { email: superUserEmail },
+        where: { email: email },
       });
       if (existingUser)
         throw new ForbiddenException('User with this email already exists');
 
       const organization = await prisma.organization.create({
-        data: { name: orgName },
+        data: { name: organizationName },
       });
 
-      const hashedPassword = await hashPassword(superUserPassword);
+      const hashedPassword = await hashPassword(password);
 
       const user = await prisma.user.create({
         data: {
-          email: superUserEmail,
+          email,
           password: hashedPassword,
-          name: superUserName,
+          name,
           role: Role.SUPERUSER,
           provider: 'EMAIL',
           organizationId: organization.id,
@@ -109,7 +109,6 @@ export class OrganizationService {
   }
 
   async registerUserByInvite(data: {
-    email: string;
     name: string;
     password: string;
     token: string;
@@ -117,15 +116,13 @@ export class OrganizationService {
     const invite = await this.prisma.inviteToken.findUnique({
       where: { token: data.token },
     });
+
     if (!invite || invite.accepted || invite.expiresAt < new Date()) {
       throw new ForbiddenException('Invalid or expired invite');
     }
-    if (invite.email !== data.email) {
-      throw new ForbiddenException('Invite email does not match');
-    }
 
     const existingUser = await this.prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email: invite.email },
     });
     if (existingUser) {
       throw new ForbiddenException('User with this email already exists');
@@ -135,7 +132,7 @@ export class OrganizationService {
 
     const user = await this.prisma.user.create({
       data: {
-        email: data.email,
+        email: invite.email,
         name: data.name,
         password: hashedPassword,
         role: invite.role,
@@ -151,7 +148,25 @@ export class OrganizationService {
 
     return user;
   }
+  async getInviteInfo(
+    token: string,
+  ): Promise<Pick<InviteToken, 'email' | 'role'>> {
+    const invite = await this.prisma.inviteToken.findUnique({
+      where: { token },
+      select: {
+        email: true,
+        role: true,
+        accepted: true,
+        expiresAt: true,
+      },
+    });
 
+    if (!invite || invite.accepted || invite.expiresAt < new Date()) {
+      throw new ForbiddenException('Invalid or expired invite');
+    }
+
+    return { email: invite.email, role: invite.role };
+  }
   async changeUserRole(
     targetUserId: string,
     newRole: Role,

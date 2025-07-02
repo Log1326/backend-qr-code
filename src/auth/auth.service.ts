@@ -34,7 +34,14 @@ export class AuthService {
     return user;
   }
   async signUpWithOrganization(dto: CreateOrganizationDto) {
-    return this.organizationService.create(dto);
+    const { user } = await this.organizationService.create(dto);
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    };
+    const token = await this.jwtService.signAsync(payload);
+    return { access_token: token };
   }
   async login(user: User): Promise<{ access_token: string }> {
     const payload: JwtPayload = {
