@@ -8,6 +8,8 @@ import { AuthService } from '../auth.service';
 import { OAuthLoginDto } from './types/types';
 import { AuthProvider } from '@prisma/client';
 
+const origin: string = process.env.HOST_URL!;
+
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(
   GoogleStrategyBase,
@@ -17,7 +19,7 @@ export class GoogleStrategy extends PassportStrategy(
     super({
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: `${process.env.HOST_URL}/auth/google/redirect`,
+      callbackURL: `${origin}/auth/google/redirect`,
       scope: ['email', 'profile'],
     });
   }

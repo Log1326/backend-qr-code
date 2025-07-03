@@ -63,7 +63,7 @@ export class OrganizationService {
     email: string,
     role: Role,
     invitedByUserId: string,
-    expiresInDays = 7,
+    expiresInDays = 3,
   ): Promise<InviteToken> {
     const inviter = await this.prisma.user.findUnique({
       where: { id: invitedByUserId },

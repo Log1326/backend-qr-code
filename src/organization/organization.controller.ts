@@ -28,28 +28,12 @@ import { RequestWithUser } from 'src/auth/interface/request-with-user.interface'
 @Controller('organizations')
 export class OrganizationController {
   constructor(private readonly orgService: OrganizationService) {}
-
-  @Post()
-  @ApiOperation({ summary: 'Create organization with superuser' })
-  @ApiBody({ type: CreateOrganizationDto })
-  @ApiResponse({
-    status: 201,
-    description: 'Organization created successfully',
-  })
-  async createOrganization(@Body() dto: CreateOrganizationDto) {
-    return this.orgService.create(dto);
+  @Get('invite/:token')
+  @ApiOperation({ summary: 'Get invite info by token' })
+  @ApiResponse({ status: 200 })
+  getInviteInfo(@Param('token') token: string) {
+    return this.orgService.getInviteInfo(token);
   }
-
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @Get(':orgId/users')
-  @ApiOperation({ summary: 'Get all users in organization' })
-  @ApiParam({ name: 'orgId', type: 'string' })
-  @ApiResponse({ status: 200, description: 'List of users' })
-  async getUsersByOrganization(@Param('orgId') orgId: string) {
-    return this.orgService.getUsersByOrganization(orgId);
-  }
-
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Post(':orgId/invite')
@@ -57,7 +41,7 @@ export class OrganizationController {
   @ApiParam({ name: 'orgId', type: 'string' })
   @ApiBody({ type: CreateInviteDto })
   @ApiResponse({ status: 201, description: 'Invite created successfully' })
-  async createInvite(
+  async createInvitePost(
     @Param('orgId') orgId: string,
     @Body() dto: CreateInviteDto,
     @Request() req: RequestWithUser,
@@ -71,22 +55,33 @@ export class OrganizationController {
     );
     return { token: invite.token };
   }
-
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @Get(':orgId/users')
+  @ApiOperation({ summary: 'Get all users in organization' })
+  @ApiParam({ name: 'orgId', type: 'string' })
+  @ApiResponse({ status: 200, description: 'List of users' })
+  async getUsersByOrganization(@Param('orgId') orgId: string) {
+    return this.orgService.getUsersByOrganization(orgId);
+  }
+  @Post()
+  @ApiOperation({ summary: 'Create organization with superuser' })
+  @ApiBody({ type: CreateOrganizationDto })
+  @ApiResponse({
+    status: 201,
+    description: 'Organization created successfully',
+  })
+  async createOrganization(@Body() dto: CreateOrganizationDto) {
+    return this.orgService.create(dto);
+  }
   @Post('register-by-invite')
   @ApiOperation({ summary: 'Register user by invite token' })
   @ApiBody({ type: RegisterUserByInviteDto })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
   async registerUserByInvite(@Body() dto: RegisterUserByInviteDto) {
+    console.log(` @Post('register-by-invite')`);
     return this.orgService.registerUserByInvite(dto);
   }
-
-  @Get('invite/:token')
-  @ApiOperation({ summary: 'Get invite info by token' })
-  @ApiResponse({ status: 200 })
-  getInviteInfo(@Param('token') token: string) {
-    return this.orgService.getInviteInfo(token);
-  }
-
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @Patch('users/:userId/role')

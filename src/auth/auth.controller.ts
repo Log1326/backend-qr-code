@@ -104,7 +104,7 @@ export class AuthController {
       secure: true,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return res.redirect(redirect ?? '/');
+    return res.redirect(redirect);
   }
 
   @Get('github')
